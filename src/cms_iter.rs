@@ -1,28 +1,66 @@
 use std::ops::{AddAssign, SubAssign, Add, DivAssign};
+use std::hash::Hash;
+use num_traits::Bounded;
+
 use crate::cms::CountMinSketch;
 
-
+/// An iterator struct to convert `CountMinSketch` instance into 
+/// so that the matrix can be iterated over.
+/// ```
+/// use decentrust::cms::CountMinSketch;
+/// 
+/// let mut cms = &CountMinSketch::<u64>::default();
+/// let mut iter = cms.into_iter();
+/// assert_eq!(Some(&u64::default()), iter.next());
+/// ```
 pub struct CountMinSketchIter<'a, T>
 where 
-    T: AddAssign + SubAssign + DivAssign + Add<Output = T>,
+    T: AddAssign 
+    + SubAssign 
+    + DivAssign 
+    + Add<Output = T>
+    + Hash
+    + Ord 
+    + Bounded
 {
     pub cms: &'a CountMinSketch<T>,
     pub row: usize,
     pub col: usize,
 }
 
+
+/// An iterator struct to convert owned `CountMinSketch` into
+/// ```
+/// use decentrust::cms::CountMinSketch;
+/// let mut cms = CountMinSketch::<u64>::default();
+/// let mut iter = cms.into_iter();
+/// assert_eq!(Some(u64::default()), iter.next());
+/// ```
 pub struct CountMinSketchIntoIter<T>
 where 
-    T: AddAssign + SubAssign + DivAssign,
+    T: AddAssign 
+    + SubAssign 
+    + DivAssign
+    + Hash 
+    + Ord 
+    + Bounded
 {
     pub matrix: Vec<Vec<T>>,
     pub row: usize,
     pub col: usize,
 }
 
+
+/// Implements the `next` method on CountMinSketchIter
 impl<'a, T> Iterator for CountMinSketchIter<'a, T> 
 where
-    T: AddAssign + SubAssign + DivAssign + Add<Output = T>,
+    T: AddAssign 
+    + SubAssign 
+    + DivAssign 
+    + Add<Output = T>
+    + Hash 
+    + Ord 
+    + Bounded
 {
     type Item = &'a T;
 
@@ -43,9 +81,17 @@ where
     }
 }
 
+/// Converts a borrowed `CountMinSketch` instance into 
+/// a type that implements iterator
 impl<'a, T> IntoIterator for &'a CountMinSketch<T>
 where
-    T: AddAssign + SubAssign + DivAssign + Add<Output = T>,
+    T: AddAssign 
+    + SubAssign 
+    + DivAssign 
+    + Add<Output = T>
+    + Hash 
+    + Ord 
+    + Bounded
 {
     type Item = &'a T;
     type IntoIter = CountMinSketchIter<'a, T>;
@@ -59,9 +105,16 @@ where
     }
 }
 
+/// Implements the `next` method on CountMinSketchIntoIter type
 impl<T> Iterator for CountMinSketchIntoIter<T> 
 where 
-    T: AddAssign + SubAssign + DivAssign + Clone, 
+    T: AddAssign 
+    + SubAssign 
+    + DivAssign 
+    + Clone 
+    + Hash 
+    + Ord
+    + Bounded
 {
     type Item = T;
 
@@ -84,9 +137,18 @@ where
 }
 
 
+/// Converts an owned `CountMinSketch` instance into a type that 
+/// implements `Iterator`
 impl<T> IntoIterator for CountMinSketch<T>
 where
-    T: AddAssign + SubAssign + DivAssign + Add<Output = T> + Clone,
+    T: AddAssign 
+    + SubAssign 
+    + DivAssign 
+    + Add<Output = T> 
+    + Clone
+    + Hash 
+    + Ord 
+    + Bounded
 {
     type Item = T;
     type IntoIter = CountMinSketchIntoIter<T>;

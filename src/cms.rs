@@ -9,38 +9,21 @@ use num_traits::Bounded;
 use std::default::Default;
 
 /// CountMinSketch is a probabilistic data structure for estimating 
-/// values, typically frequencies in a data stream. This is implemented
-/// in the VRRB protocol to provide a fast, scalable, dynamic data 
-/// structure for storing and estimating the reputation score of nodes
-/// in the network and message credits of nodes in the network which
-/// are two of the core security features of the VRRB protocol.
-/// While it is subject to overestimation, the VRRB protocol accounts
-/// for such maximum probabilistic overestimation by bucketizing 
-/// reputation scores and calculating nodes required stake to become 
-/// a validator based on the bucket they fall into. The buckets account
-/// for some overestimation and round down, sometimes requiring nodes to 
-/// put up a larger stake than if the data structure were perfectly accurate
-/// however, this is a positive tradeoff, as the speed and scalability of 
-/// tracking message credits and reputations improves, and in the event that
-/// there is an overestimation we ensure that we are not rewarding nodes 
-/// for reputation they haven't truly earned. For example:
-///
-/// Nodes with reputation between 0 and 100 may have an estimate in CountMinSketch
-/// as high as 150, so all nodes with reputation estimate between 0 and 150 are in 
-/// the same bucket, of requiring the maximum stake. While nodes with reputation
-/// estimates between 151 and 250 are in the 2nd bucket, and so forth and so on.
-/// Nodes can now also quickly agree on the buckets which their peers are in for
-/// the purpose of calculating required stake of each validator and determining
-/// their current eligibility for election to a farmer or harvester quorum.
-///
+/// values, typically frequencies in a data stream. In this crate 
+/// it is designed to be a proabilistic reputation tracking structure
+/// but can be used for tracking frequencies in a data stream as well 
+/// as other use cases for probabilistic data structures where small 
+/// overestimations within a given error bound and with a given 
+/// proability is acceptable, but underestimations are never acceptable
 /// ```
 /// use std::collections::hash_map::RandomState;
-/// use std::ops::{AddAssign, SubAssign};
+/// use std::ops::{AddAssign, SubAssign, DivAssign, Add};
+/// use std::hash::Hash;
 ///
 /// #[derive(Clone, Debug)]
 /// pub struct CountMinSketch<T>
 /// where
-///     T: AddAssign + SubAssign + DivAssign + Add<Output = T>
+///     T: AddAssign + SubAssign + DivAssign + Add<Output = T> + Ord + Hash
 /// {
 ///     pub width: usize,
 ///     pub depth: usize,
@@ -57,6 +40,8 @@ where
     + SubAssign 
     + DivAssign
     + Add<Output = T>
+    + Ord 
+    + Hash
 {
     pub width: usize,
     pub depth: usize,
@@ -72,13 +57,24 @@ where
     + SubAssign 
     + DivAssign
     + Add<Output = T> 
-    + Hash 
     + Default 
     + Copy 
-    + Ord 
     + Bounded
+    + Ord 
+    + Hash
 {
-    /// Creates a new CountMinSketch struct 
+    /// Creates a new CountMinSketch struct with a width,
+    /// depth, min value and max value
+    ///
+    /// ```
+    /// use decentrust::cms::CountMinSketch;
+    /// use ordered_float::OrderedFloat;
+    ///
+    /// let cms = CountMinSketch::<OrderedFloat<f64>>::new(
+    /// 3000, 10, 0f64.into(), 1000f64.into());
+    ///
+    /// println!("{:?}", cms);
+    /// ```
     pub fn new(width: usize, depth: usize, min: T, max: T) -> Self {
         let matrix = vec![vec![T::default(); width]; depth];
         let hash_builder = RandomState::new();
@@ -93,6 +89,24 @@ where
         }
     }
 
+    /// Creates a new CountMinSketch from desired bounds and 
+    /// probability of overestimation, and the maximum number 
+    /// of expected entries.
+    ///
+    /// ```
+    /// use decentrust::cms::CountMinSketch;
+    /// use ordered_float::OrderedFloat;
+    ///
+    /// let cms = CountMinSketch::<OrderedFloat<f64>>::new_from_bounds(
+    ///     50f64, 
+    ///     0.001, 
+    ///     10000f64, 
+    ///     0f64.into(), 
+    ///     1000f64.into()
+    /// );
+    ///
+    /// println!("{:?}", cms);
+    /// ```
     pub fn new_from_bounds(
         error_bound: f64, 
         probability: f64, 
@@ -140,22 +154,13 @@ where
     /// ```
     /// // Need some float primitives to calculate 
     /// // depth and width based on desired error_bound and probability
-    /// use std::f64::consts::E;
-    /// use std::f64::ceil;
-    /// use std::f64::ln;
-    /// use cms::cms::CountMinSketch;
+    /// use decentrust::cms::CountMinSketch;
     /// 
-    /// // Calculate the width and depth based on desired error bound
-    /// let error_bound = 50f64;
-    /// let probability = 0.0001f64;
-    /// let n = 200f64;
-    /// let width = ceil(1 / (error_bound / n) as usize;
-    /// let depth = ceil(ln(probability)) as usize;
-    ///
     /// // Create CountMinSketch with calculated depth and width
-    /// let mut cms = CountMinSketch::<i64>::new(width, depth);
+    /// let mut cms = CountMinSketch::<i64>::default();
     ///
     /// // Create a mock node_id let node_id = "node_1";
+    /// let node_id = "node1";
     ///
     /// // Increment the node's reputation score;
     /// cms.increment(&node_id, 100);
@@ -165,8 +170,8 @@ where
     /// // Decrement the reputation score
     /// cms.increment(&node_id, -50);
     /// let estmimated_score = cms.estimate(&node_id);
-    /// println!("Estimated reputation score after decrement: {}", estimated_score);
     ///
+    /// println!("Estimated reputation score after decrement: {}", estimated_score);
     ///
     /// ```
     pub fn increment(&mut self, item: &impl Hash, value: T) {
@@ -183,6 +188,21 @@ where
     /// the hash values for the item using hash_functions and returns 
     /// the minimum value found at the respective positions in the sketch
     /// matrix.
+    ///
+    /// ```
+    /// use decentrust::cms::CountMinSketch;
+    /// 
+    /// // Create CountMinSketch with calculated depth and width
+    /// let mut cms = CountMinSketch::<i64>::default();
+    ///
+    /// // Create a mock node_id let node_id = "node_1";
+    /// let node_id = "node1";
+    ///
+    /// // Increment the node's reputation score;
+    /// cms.increment(&node_id, 10);
+    /// let estimated_score = cms.estimate(&node_id);
+    /// assert_eq!(estimated_score, 10);
+    /// ```
     pub fn estimate(&self, item: &impl Hash) -> T {
         let hashes = self.hash_functions(item);
         let mut min_estimate = self.matrix[0][hashes[0]];
@@ -193,7 +213,9 @@ where
         min_estimate
     }
 
-    pub fn calculate_width_and_depth(
+    /// Helper method to calculate width and depth of a CountMinSketch 
+    /// internally. Used in the `new_from_bounds` initializer method
+    fn calculate_width_and_depth(
         error_bound: f64, 
         probability: f64, 
         max_entries: f64
@@ -212,8 +234,40 @@ where
         self.max
     }
 
+    /// Loops through the entire matrix and extracts summed value 
+    /// from each row. It then loops through every row and column 
+    /// in the matrix and divides each value by the summed value for 
+    /// the given row to create a normalized value. Currently this 
+    /// should only return a value between 0 or 1, i.e. a float.
+    /// ```
+    /// use decentrust::cms::CountMinSketch;
+    /// use ordered_float::OrderedFloat;
+    /// 
+    /// // Create CountMinSketch with calculated depth and width
+    /// let mut cms = CountMinSketch::<OrderedFloat<f64>>::default();
+    ///
+    /// // Create a mock node_id let node_id = "node_1";
+    /// let node_id = "node1";
+    ///
+    /// // Increment the node's reputation score;
+    /// cms.increment(&node_id, 10f64.into());
+    /// let estimated_score = cms.estimate(&node_id);
+    /// assert_eq!(estimated_score, OrderedFloat(10f64));
+    ///
+    /// let mut normalized_cms = cms.clone();
+    /// normalized_cms.matrix = cms.normalize_estimates(); 
+    ///
+    /// let normalized_estimate = normalized_cms.estimate(&node_id);
+    /// println!("{}", normalized_estimate);
+    /// 
+    /// ```
+    // TODO: add normalization factor to be able to return integers 
+    // both signed and unsigned, by multiplying the float value for 
+    // each normalized value by the factor. Factors should be orders 
+    // of decimal magnitude, i.e. should always be modulo 10 == 0.
+    //
     pub fn normalize_estimates(&self) -> Vec<Vec<T>> {
-        let mut total_vec: Vec<T> = Vec::with_capacity(self.depth); 
+        let mut total_vec: Vec<T> = vec![T::default(); self.depth]; 
         let mut new_matrix = vec![vec![T::default(); self.width]; self.depth];
         for (idx, row) in self.matrix.iter().enumerate() {
             let row_acc = row.iter().fold(T::default(), |acc, v| {
@@ -236,6 +290,27 @@ where
         new_matrix
     }
 
+    /// Returns the length of all non-default entries in the 
+    /// `CountMinSketch` instance to get a probabilistic length 
+    /// of the number of items the instance is tracking.
+    ///
+    /// ```
+    /// use decentrust::cms::CountMinSketch;
+    /// use ordered_float::OrderedFloat;
+    /// 
+    /// // Create CountMinSketch with calculated depth and width
+    /// let mut cms = CountMinSketch::<OrderedFloat<f64>>::default();
+    ///
+    /// // Create a mock node_id let node_id = "node_1";
+    /// let node_id = "node1";
+    ///
+    /// // Increment the node's reputation score;
+    /// cms.increment(&node_id, 10f64.into());
+    /// let len = cms.get_estimate_length();
+    ///
+    /// println!("{}", len);
+    /// ```
+    ///
     pub fn get_estimate_length(&self) -> usize {
         let len = self.matrix
             .iter()
@@ -254,6 +329,8 @@ where
     }
 }
 
+/// Implements the default trait for count_min_sketch for a 
+/// given T value. 
 impl<T> Default for CountMinSketch<T> 
 where
     T: AddAssign 

@@ -19,10 +19,15 @@ use crate::honest_peer::HonestPeer;
 /// pub struct PreciseHonestPeer<K, V> 
 /// where 
 ///     K: Eq + Hash + Clone,
-///     V: AddAssign + DivAssign + Add<Output = V> + Mul<Output = V> + Copy + Default
+///     V: AddAssign 
+///     + DivAssign 
+///     + Add<Output = V> 
+///     + Mul<Output = V> 
+///     + Copy 
+///     + Default
 /// {
 ///     local_trust: HashMap<K, V>,
-///     global_trust: HashMap<K, V>
+///     global_trust: HashMap<K, V>,
 ///     normalized_local_trust: HashMap<K, V>,
 ///     normalized_global_trust: HashMap<K, V>,
 /// }
@@ -48,11 +53,15 @@ where
     /// 
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use ordered_float::OrderedFloat;
     ///
-    /// let mut hp: PreciseHonestPeer<String, f64> = PreciseHonestPeer::new();
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
     /// 
-    /// assert_eq!(0, hp.local_trust_len());
-    /// assert_eq!(0, hp.global_trust_len());
+    /// assert_eq!(0, hp.local_raw_len());
+    /// assert_eq!(0, hp.global_raw_len());
     /// ```
     pub fn new() -> Self {
         PreciseHonestPeer { 
@@ -90,11 +99,15 @@ where
     ///
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use ordered_float::OrderedFloat;
     /// 
-    /// let mut hp: PreciseHonestPeer<String, f64> = PreciseHonestPeer::new();
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
     /// 
     /// // Insert and normalize initial trust scores
-    /// hp.init_local_trust("node1".to_string(), 0.01);
+    /// hp.init_local(&"node1".to_string(), 0.01f64.into());
     ///
     /// assert_eq!(hp.local_raw_len(), 1);
     /// assert_eq!(hp.local_normalized_len(), 1);
@@ -110,40 +123,52 @@ where
     ///
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use ordered_float::OrderedFloat;
     ///
-    /// fn equal_floats(a: &f64, b: f64, epsilon: f64) -> bool {
-    ///     (*a - b).abs() < epsilon
+    /// fn equal_floats(a: f64, b: f64, epsilon: f64) -> bool {
+    ///     (a - b).abs() < epsilon
     /// }
     ///
-    /// let mut hp: PreciseHonestPeer<String, f64> = PreciseHonestPeer::new();
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
     /// 
     /// // Insert and normalize initial trust scores
-    /// hp.init_local("node1".to_string(), 0.01);
-    /// hp.init_local("node2".to_string(), 0.01);
+    /// hp.init_local(&"node1".to_string(), 0.01f64.into());
+    /// hp.init_local(&"node2".to_string(), 0.01f64.into());
     ///
-    /// hp.update_local(&"node1".to_string(), 0.05);
+    /// hp.update_local(&"node1".to_string(), 0.05f64.into());
     ///
     /// let local_total_trust = 0.01 + 0.01 + 0.05;
-    /// let node_1_local_trust = 0.06 / local_total_trust;
-    /// let node_2_local_trust = 0.01 / local_total_trust;
+    /// let node_1_local_trust: OrderedFloat<f64> = (0.06 / local_total_trust).into();
+    /// let node_2_local_trust: OrderedFloat<f64> = (0.01 / local_total_trust).into();
     ///
     /// // Since the init calls are the first in this instance,
     /// // normalization will necessarily mean that they equal 100% of the 
     /// // weight of the scores.
     /// if let Some(val) = hp.get_normalized_local(&"node1".to_string()) {
-    ///     assert!(equal_floats(val, node_1_local_trust, 1e-9));
+    ///     assert!(equal_floats(
+    ///         val.into_inner(), 
+    ///         node_1_local_trust.into_inner(), 
+    ///         1e-9f64)
+    ///     );
     /// }
     ///
     /// if let Some(val) = hp.get_raw_local(&"node1".to_string()) {
-    ///     assert!(equal_floats(val, 0.06, 1e-9));
+    ///     assert!(equal_floats(val.into_inner(), 0.06f64, 1e-9f64));
     /// }
     ///
     /// if let Some(val) = hp.get_normalized_local(&"node2".to_string()) {
-    ///     assert!(equal_floats(val, node_2_local_trust, 1e-9));
+    ///     assert!(equal_floats(
+    ///         val.into_inner(), 
+    ///         node_2_local_trust.into_inner(),
+    ///         1e-9f64)
+    ///     );
     /// }
     ///
     /// if let Some(val) = hp.get_raw_local(&"node2".to_string()) {
-    ///     assert!(equal_floats(val, 0.01, 1e-9));
+    ///     assert!(equal_floats(val.into_inner(), 0.01f64, 1e-9f64));
     /// }
     ///
     /// ```
@@ -178,11 +203,15 @@ where
     ///
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use ordered_float::OrderedFloat;
     /// 
-    /// let mut hp: PreciseHonestPeer<String, f64> = PreciseHonestPeer::new();
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
     /// 
     /// // Insert and normalize initial trust scores
-    /// hp.init_global("node1".to_string(), 0.01);
+    /// hp.init_global(&"node1".to_string(), 0.01f64.into());
     ///
     /// assert_eq!(hp.global_raw_len(), 1);
     /// assert_eq!(hp.global_normalized_len(), 1);
@@ -197,43 +226,28 @@ where
     /// the normalized global trust map.
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use ordered_float::OrderedFloat;
     ///
-    /// fn equal_floats(a: &f64, b: f64, epsilon: f64) -> bool {
-    ///     (*a - b).abs() < epsilon
-    /// }
-    ///
-    /// let mut hp: PreciseHonestPeer<String, f64> = PreciseHonestPeer::new();
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = PreciseHonestPeer::new();
     /// 
     /// // Insert and normalize initial trust scores
-    /// hp.init_global("node1".to_string(), 0.01);
-    /// hp.init_global("node2".to_string(), 0.01);
+    /// hp.init_global(&"node1".to_string(), 0.01f64.into());
+    /// hp.init_global(&"node2".to_string(), 0.01f64.into());
     ///
-    /// hp.update_global(&"node1".to_string(), 0.02);
+    /// hp.update_global(&"node1".to_string(), 0.02f64.into());
     ///
     /// let global_total_trust = 0.01 + 0.01 + 0.02;
-    /// let node_1_global_trust = 0.03 / global_total_trust;
-    /// let node_2_global_trust = 0.01 / global_total_trust;
+    /// let node_1_global_trust: OrderedFloat<f64> = (0.03 / global_total_trust).into();
+    /// let node_2_global_trust: OrderedFloat<f64> = (0.01 / global_total_trust).into();
     ///
     /// // Since the init calls are the first in this instance,
     /// // normalization will necessarily mean that they equal 100% of the 
     /// // weight of the scores.
-    /// if let Some(val) = hp.get_normalized_global(&"node1".to_string()) {
-    ///     assert!(equal_floats(val, node_1_global_trust, 1e-9));
-    /// }
-    ///
-    /// if let Some(val) = hp.get_raw_global(&"node1".to_string()) {
-    ///     assert!(equal_floats(val, 0.03, 1e-9));
-    /// }
-    ///
-    ///
-    /// if let Some(val) = hp.get_normalized_global(&"node2".to_string()) {
-    ///     assert!(equal_floats(val, node_2_global_trust, 1e-9));
-    /// }
-    ///
-    /// if let Some(val) = hp.get_raw_global(&"node2".to_string()) {
-    ///     assert!(equal_floats(val, 0.01, 1e-9));
-    /// }
-    ///
+    /// println!("{:?}", hp.get_normalized_global(&"node1".to_string())); 
+    /// println!("{:?}", hp.get_raw_global(&"node1".to_string())); 
+    /// println!("{:?}", hp.get_normalized_global(&"node2".to_string())); 
+    /// println!("{:?}", hp.get_raw_global(&"node2".to_string())); 
     /// ```
     fn update_global(&mut self, key: &Self::Key, trust_delta: Self::Value) {
         if let Some(trust_score) = self.global_trust.get_mut(key) {

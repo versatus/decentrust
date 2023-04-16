@@ -12,6 +12,8 @@ use std::hash::Hash;
 
 use num_traits::Bounded;
 
+/// A trait to implement a shared interface between a 
+/// precise and proabilistic data structures to track P2P node 
 pub trait HonestPeer {
     type Map: IntoIterator;
     type Key: Eq + Hash + Clone;
@@ -24,9 +26,7 @@ pub trait HonestPeer {
         + Sub<Output = Self::Value> 
         + Copy 
         + Default 
-        + Bounded 
-        + Hash 
-        + Ord;
+        + Bounded; 
 
     fn init_local(&mut self, key: &Self::Key, init_value: Self::Value);
     fn update_local(&mut self, key: &Self::Key, trust_delta: Self::Value);
