@@ -24,6 +24,7 @@ pub trait HonestPeer {
         + Mul<Output = Self::Value> 
         + Div<Output = Self::Value> 
         + Sub<Output = Self::Value> 
+        + PartialOrd
         + Copy 
         + Default 
         + Bounded; 

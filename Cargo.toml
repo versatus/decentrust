@@ -9,3 +9,4 @@ edition = "2021"
 siphasher = "0.3.10"
 num-traits = "0.2"
 ordered-float = "3.6.0"
+buckets = { git = "https://github.com/vrrb-io/buckets", branch = "main" }

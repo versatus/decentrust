@@ -1,8 +1,8 @@
 use std::hash::Hash;
 use std::ops::{AddAssign, DivAssign, SubAssign, Add, Mul, Div, Sub};
+use buckets::bucketize::BucketizeSingle;
 use num_traits::Bounded;
 use std::marker::PhantomData;
-
 use crate::cms::CountMinSketch;
 use crate::honest_peer::HonestPeer;
 
@@ -148,6 +148,70 @@ where
             normalized_global_trust: sketch.clone(),
             id_type: None
         }
+    }
+
+    pub fn bucketize_local<'a, B>(
+        &'a self, 
+        node_ids: impl Iterator<Item = K> + 'a, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        node_ids.map(move |k| {
+            let estimate = self.local_trust.estimate(&k);
+            let bucketed = bucketizer.bucketize(&estimate);
+            (k, bucketed)
+
+        })
+    }
+
+    pub fn bucketize_normalized_local<'a, B>(
+        &'a self, 
+        node_ids: impl Iterator<Item = K> + 'a, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        node_ids.map(move |k| {
+            let estimate = self.normalized_local_trust.estimate(&k);
+            let bucketed = bucketizer.bucketize(&estimate);
+            (k, bucketed)
+
+        })
+    }
+
+    pub fn bucketize_global<'a, B>(
+        &'a self, 
+        node_ids: impl Iterator<Item = K> + 'a, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        node_ids.map(move |k| {
+            let estimate = self.global_trust.estimate(&k);
+            let bucketed = bucketizer.bucketize(&estimate);
+            (k, bucketed)
+
+        })
+    }
+
+    pub fn bucketize_normalized_global<'a, B>(
+        &'a self, 
+        node_ids: impl Iterator<Item = K> + 'a, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        node_ids.map(move |k| {
+            let estimate = self.normalized_global_trust.estimate(&k);
+            let bucketed = bucketizer.bucketize(&estimate);
+            (k, bucketed)
+
+        })
     }
 }
 
