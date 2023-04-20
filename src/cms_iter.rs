@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::ops::{AddAssign, SubAssign, Add, DivAssign};
 use std::hash::Hash;
 use num_traits::Bounded;
@@ -21,6 +22,7 @@ where
     + Add<Output = T>
     + Hash
     + Ord 
+    + Debug 
     + Bounded
 {
     pub cms: &'a CountMinSketch<T>,
@@ -43,6 +45,7 @@ where
     + DivAssign
     + Hash 
     + Ord 
+    + Debug 
     + Bounded
 {
     pub matrix: Vec<Vec<T>>,
@@ -60,6 +63,7 @@ where
     + Add<Output = T>
     + Hash 
     + Ord 
+    + Debug 
     + Bounded
 {
     type Item = &'a T;
@@ -91,6 +95,7 @@ where
     + Add<Output = T>
     + Hash 
     + Ord 
+    + Debug 
     + Bounded
 {
     type Item = &'a T;
@@ -114,6 +119,7 @@ where
     + Clone 
     + Hash 
     + Ord
+    + Debug 
     + Bounded
 {
     type Item = T;
@@ -148,6 +154,7 @@ where
     + Clone
     + Hash 
     + Ord 
+    + Debug 
     + Bounded
 {
     type Item = T;
