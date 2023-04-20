@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::{AddAssign, DivAssign, SubAssign, Add, Mul, Div, Sub};
+use buckets::bucketize::BucketizeSingle;
 use num_traits::Bounded;
-
 use crate::honest_peer::HonestPeer;
 
 /// A struct to track local and global trust of peers in a 
@@ -35,19 +35,36 @@ use crate::honest_peer::HonestPeer;
 pub struct PreciseHonestPeer<K, V> 
 where 
     K: Eq + Hash + Clone,
-    V: AddAssign + DivAssign + Add<Output = V> + Mul<Output = V> + Div<Output = V> + Sub<Output = V> + Copy + Default
+    V: AddAssign 
+    + DivAssign 
+    + Add<Output = V> 
+    + Mul<Output = V> 
+    + Div<Output = V> 
+    + Sub<Output = V> 
+    + PartialOrd
+    + Copy 
+    + Default
 {
     local_trust: HashMap<K, V>,
     global_trust: HashMap<K, V>,
     normalized_local_trust: HashMap<K, V>,
-    normalized_global_trust: HashMap<K, V>
+    normalized_global_trust: HashMap<K, V>,
 }
 
 
 impl<K, V> PreciseHonestPeer<K, V> 
 where 
     K: Eq + Hash + Clone,
-    V: AddAssign + DivAssign + SubAssign + Add<Output = V> + Mul<Output = V> + Div<Output = V> + Sub<Output = V> + Copy + Default
+    V: AddAssign 
+    + DivAssign 
+    + SubAssign 
+    + Add<Output = V> 
+    + Mul<Output = V> 
+    + Div<Output = V> 
+    + Sub<Output = V> 
+    + PartialOrd
+    + Copy 
+    + Default,
 {
     /// Creates a new `PreciseHonestPeer` struct with no peers in it.
     /// 
@@ -70,6 +87,60 @@ where
             normalized_local_trust: HashMap::new(),
             normalized_global_trust: HashMap::new(),
         }
+    }
+
+    pub fn bucketize_local<'a, B>(
+        &'a self, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        self.local_trust.iter().map(move |(k, v)| {
+            let bucketed = bucketizer.bucketize(v);
+            (k.clone(), bucketed)
+        })
+    }
+
+    pub fn bucketize_normalized_local<'a, B>(
+        &'a self, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        self.normalized_local_trust.iter().map(move |(k, v)| {
+            let bucketed = bucketizer.bucketize(v);
+            (k.clone(), bucketed)
+
+        })
+    }
+
+    pub fn bucketize_global<'a, B>(
+        &'a self, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        self.global_trust.iter().map(move |(k, v)| {
+            let bucketed = bucketizer.bucketize(v);
+            (k.clone(), bucketed)
+
+        })
+    }
+
+    pub fn bucketize_normalized_global<'a, B>(
+        &'a self, 
+        bucketizer: B
+    ) -> impl Iterator<Item = (K, usize)> + '_
+    where 
+        B: BucketizeSingle<V> + 'a
+    {
+        self.normalized_global_trust.iter().map(move |(k, v)| {
+            let bucketed = bucketizer.bucketize(v);
+            (k.clone(), bucketed)
+        })
     }
 }
 

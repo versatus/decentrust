@@ -1,4 +1,5 @@
 #![allow(unused)]
+use std::fmt::Debug;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::collections::hash_map::RandomState;
 use std::ops::{AddAssign, SubAssign, Add, DivAssign};
@@ -42,6 +43,7 @@ where
     + Add<Output = T>
     + Ord 
     + Hash
+    + Debug
 {
     pub width: usize,
     pub depth: usize,
@@ -62,6 +64,7 @@ where
     + Bounded
     + Ord 
     + Hash
+    + Debug
 {
     /// Creates a new CountMinSketch struct with a width,
     /// depth, min value and max value
@@ -128,18 +131,18 @@ where
     /// and a index representing the hash function. It creates a new
     /// hasher using the hash_builder, hashes the item, and returns
     /// the hashed value modulo the width of the sketch matric.
-    fn hash_pair(&self, item: &impl Hash, index: usize) -> usize {
+    fn hash_pair<H: Hash + ToString>(&self, item: &H, index: usize) -> usize {
         let mut hasher = self.hash_builder.build_hasher();
         let wrapping_index = Wrapping(index as u64);
+        hasher.write(item.to_string().as_bytes());
         let wrapping_hash = Wrapping(hasher.finish());
-
         (wrapping_hash + wrapping_index).0 as usize % self.width
     }
 
     /// Takes a reference to an item that implements `Hash` and
     /// returns a vector hashed values for each hash function
     /// (one value for each row in the sketch matrix)
-    fn hash_functions(&self, item: &impl Hash) -> Vec<usize> {
+    fn hash_functions<H: Hash + ToString>(&self, item: &H) -> Vec<usize> {
         (0..self.depth).map(|i| self.hash_pair(item, i)).collect()
     }
 
@@ -174,7 +177,7 @@ where
     /// println!("Estimated reputation score after decrement: {}", estimated_score);
     ///
     /// ```
-    pub fn increment(&mut self, item: &impl Hash, value: T) {
+    pub fn increment<H: Hash + ToString>(&mut self, item: &H, value: T) {
         let hashes = self.hash_functions(item);
         (0..self.depth).into_iter()
             .for_each(|i| {
@@ -203,11 +206,14 @@ where
     /// let estimated_score = cms.estimate(&node_id);
     /// assert_eq!(estimated_score, 10);
     /// ```
-    pub fn estimate(&self, item: &impl Hash) -> T {
+    pub fn estimate<H: Hash + ToString>(&self, item: &H) -> T {
         let hashes = self.hash_functions(item);
         let mut min_estimate = self.matrix[0][hashes[0]];
         (1..self.depth).into_iter().for_each(|i| {
-            min_estimate = std::cmp::min(min_estimate, self.matrix[i][hashes[i]]); 
+            min_estimate = std::cmp::min(
+                min_estimate, 
+                self.matrix[i][hashes[i]]
+            ); 
         });
 
         min_estimate
@@ -220,8 +226,10 @@ where
         probability: f64, 
         max_entries: f64
     ) -> (usize, usize) { 
-        let width = f64::ceil(1f64 / (error_bound / max_entries)) as usize;
-        let depth = f64::ceil(f64::ln(probability)) as usize;
+        let epsilon = error_bound / max_entries;
+        
+        let width = f64::ceil(std::f64::consts::E / epsilon) as usize;
+        let depth = f64::ceil(-probability.ln()) as usize;
 
         (width, depth)
     }
@@ -275,15 +283,16 @@ where
             });
 
             total_vec[idx] = row_acc;
-
         }
 
         new_matrix.iter_mut()
             .enumerate()
             .for_each(|(idx, row)| {
                 let total_trust = total_vec[idx];
-                row.iter_mut().for_each(|v| {
-                    *v /= total_trust;
+                row.iter_mut().enumerate().for_each(|(i, v)| {
+                    let mut raw = self.matrix[idx][i];
+                    raw /= total_trust;
+                    *v = raw;
                 });
             });
 
@@ -341,6 +350,7 @@ where
     + Default 
     + Copy 
     + Ord 
+    + Debug
     + Bounded
     
 {
