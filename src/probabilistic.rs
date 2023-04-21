@@ -396,6 +396,14 @@ where
 
         })
     }
+
+    pub fn get_width(&self) -> usize {
+        self.local_trust.get_width()
+    }
+
+    pub fn get_depth(&self) -> usize {
+        self.local_trust.get_depth()
+    }
 }
 
 impl<K, V> HonestPeer for LightHonestPeer<K, V> 

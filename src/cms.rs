@@ -20,11 +20,18 @@ use std::default::Default;
 /// use std::collections::hash_map::RandomState;
 /// use std::ops::{AddAssign, SubAssign, DivAssign, Add};
 /// use std::hash::Hash;
+/// use std::fmt::Debug;
 ///
 /// #[derive(Clone, Debug)]
 /// pub struct CountMinSketch<T>
 /// where
-///     T: AddAssign + SubAssign + DivAssign + Add<Output = T> + Ord + Hash
+///     T: AddAssign 
+///     + SubAssign 
+///     + DivAssign 
+///     + Add<Output = T> 
+///     + Ord 
+///     + Hash
+///     + Debug
 /// {
 ///     pub width: usize,
 ///     pub depth: usize,
@@ -185,6 +192,39 @@ where
             }
         )
     }
+    /// Decrements the value associated with the given item in the CountMinSketch.
+    ///
+    /// This method will decrement the value by the specified amount, but never go below zero. If the result of the subtraction
+    /// would be negative, the value will be set to zero instead.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use decentrust::cms::CountMinSketch;
+    ///
+    /// let mut cms = CountMinSketch::<u32>::new_from_bounds(10.0, 0.000001, 100_000.0, 0, 1_000);
+    /// cms.increment(&1, 100);
+    /// cms.decrement(&1, 50);
+    ///
+    /// let estimate = cms.estimate(&1);
+    ///
+    /// assert!(estimate >= 50 && estimate <= 60);
+    /// ```
+    ///
+    pub fn decrement<H: Hash + ToString>(&mut self, item: &H, value: T) {
+        let hashes = self.hash_functions(item);
+        (0..self.depth).into_iter()
+            .for_each(|i| {
+                let mut val = self.matrix[i][hashes[i]].clone();
+                if value > val {
+                    self.matrix[i][hashes[i]] = T::default();
+                } else {
+                    val -= value;
+                    self.matrix[i][hashes[i]] = val; 
+                }
+            }
+        )
+    }
 
     /// Takes a reference to an item implementing `Hash` and
     /// returns an estimate of the value for that item. It calculates
@@ -240,6 +280,14 @@ where
 
     pub fn get_max(&self) -> T {
         self.max
+    }
+
+    pub fn get_width(&self) -> usize {
+        self.width
+    }
+
+    pub fn get_depth(&self) -> usize {
+        self.depth
     }
 
     /// Loops through the entire matrix and extracts summed value 
