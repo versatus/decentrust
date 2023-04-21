@@ -10,6 +10,7 @@ use std::ops::{
 
 use std::hash::Hash;
 
+use buckets::into_buckets::IntoBuckets;
 use num_traits::Bounded;
 
 /// A trait to implement a shared interface between a 

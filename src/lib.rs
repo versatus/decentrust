@@ -6,20 +6,46 @@ pub mod honest_peer;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::probabilistic::LightHonestPeer;
-    use crate::honest_peer::HonestPeer;
-    use buckets::bucketizers::{fw::FixedWidthBucketizer, range::RangeBucketizer};
+    use std::collections::HashMap;
+    use crate::{
+        probabilistic::LightHonestPeer,
+        precise::PreciseHonestPeer,
+        honest_peer::HonestPeer,
+    };
+    use buckets::bucketizers::{
+        fw::FixedWidthBucketizer, 
+        range::RangeBucketizer
+    };
     use buckets::bucketize::BucketizeSingle;
     use ordered_float::OrderedFloat;
     use num_traits::Bounded;
-    
+    use std::collections::hash_map;
 
     #[test]
-    fn should_create_precise_honest_peer_instance() {}
+    fn should_create_precise_honest_peer_instance() {
+        let hp: PreciseHonestPeer<String, OrderedFloat<f64>> = PreciseHonestPeer::new();
+        assert_eq!(hp.local_raw_len(), 0);
+        assert_eq!(hp.global_raw_len(), 0);
+    }
     
     #[test]
-    fn should_create_light_honest_peer_instance() {}
+    fn should_create_light_honest_peer_instance() {
+        let error_bound = 50.0;
+        let probability = 0.0001;
+        let max_entries = 3000.0;
+        let min = 0.0;
+        let max = f64::max_value();
+        let hp: LightHonestPeer<String, OrderedFloat<f64>> = LightHonestPeer::new_from_bounds(
+            error_bound, 
+            probability, 
+            max_entries, 
+            OrderedFloat::from(min), 
+            OrderedFloat::from(max)
+        );
+
+        assert_eq!(hp.get_width(), 164);
+        assert_eq!(hp.get_depth(), 10);
+    }
 
     #[test]
     fn should_create_count_min_sketch_instance() {}
@@ -29,6 +55,9 @@ mod tests {
 
     #[test]
     fn should_decrement_count_min_sketch_estimate() {}
+
+    #[test]
+    fn should_set_value_to_zero_if_decrement_exceeds_value() {}
 
     #[test]
     fn should_increment_node_reputation_in_precise_instance() {}
@@ -77,68 +106,4 @@ mod tests {
 
     #[test]
     fn should_get_nodes_reputation_score_precise() {}
-
-    #[test]
-    fn should_bucketize_estimates() {
-
-        let mut hp: LightHonestPeer<String, OrderedFloat<f64>> = {
-            LightHonestPeer::new_from_bounds(
-                1f64,
-                0.0001f64,
-                3000f64,
-                OrderedFloat::<f64>::min_value(),
-                OrderedFloat::<f64>::max_value()
-            )
-        };
-
-        let node_ids = vec!["node_1".to_string(), "node_2".to_string(), "abcde".to_string()];
-        let ranges: Vec<(OrderedFloat<f64>, OrderedFloat<f64>)> = vec![
-            (OrderedFloat::from(0.0), OrderedFloat::from(5.0)),
-            (OrderedFloat::from(5.0), OrderedFloat::from(15.0)), 
-            (OrderedFloat::from(15.0), OrderedFloat::from(30.0)),
-            (OrderedFloat::from(30.0), OrderedFloat::<f64>::max_value())
-        ];
-
-        let bucketizer = RangeBucketizer::new(ranges); 
-
-        hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
-        hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
-
-        let mut map = hp.bucketize_local(node_ids.iter().cloned(), bucketizer);
-
-        assert_eq!(Some(("node_1".to_string(), 1)), map.next());
-        assert_eq!(Some(("node_2".to_string(), 0)), map.next());
-        assert_eq!(Some(("abcde".to_string(), 0)), map.next());
-
-    }
-
-    #[test]
-    fn should_bucketize_normalized_estimates() {
-        let mut hp: LightHonestPeer<String, OrderedFloat<f64>> = {
-            LightHonestPeer::new_from_bounds(
-                1f64,
-                0.0001f64,
-                3000f64,
-                OrderedFloat::<f64>::min_value(),
-                OrderedFloat::<f64>::max_value()
-            )
-        };
-    
-        let node_ids = vec!["node_1".to_string(), "node_2".to_string(), "abcde".to_string()];
-    
-        let bucketizer: FixedWidthBucketizer<OrderedFloat<f64>> = {
-            FixedWidthBucketizer::<OrderedFloat<f64>>::new(
-                OrderedFloat::from(0.05), OrderedFloat::from(0.0)
-            ) 
-        };
-    
-        hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
-        hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
-
-        let mut map = hp.bucketize_normalized_local(node_ids.iter().cloned(), bucketizer);
-    
-        assert_eq!(Some(("node_1".to_string(), 13)), map.next());
-        assert_eq!(Some(("node_2".to_string(), 5)), map.next());
-        assert_eq!(Some(("abcde".to_string(), 0)), map.next());
-    }
 }

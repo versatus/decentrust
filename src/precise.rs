@@ -32,6 +32,7 @@ use crate::honest_peer::HonestPeer;
 ///     normalized_global_trust: HashMap<K, V>,
 /// }
 /// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreciseHonestPeer<K, V> 
 where 
     K: Eq + Hash + Clone,
@@ -89,6 +90,46 @@ where
         }
     }
 
+    /// Returns an iterator of keys -> bucketized values 
+    /// using the bucketizer provided, from the raw local 
+    /// trust map.
+    ///
+    /// # Example 
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use buckets::bucketizers::range::RangeBucketizer;
+    /// use buckets::bucketize::BucketizeSingle;
+    /// use ordered_float::OrderedFloat;
+    /// use num_traits::Bounded;
+    ///
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
+    ///
+    /// let ranges: Vec<(OrderedFloat<f64>, OrderedFloat<f64>)> = vec![
+    ///     (OrderedFloat::from(0.0), OrderedFloat::from(5.0)),
+    ///     (OrderedFloat::from(5.0), OrderedFloat::from(15.0)), 
+    ///     (OrderedFloat::from(15.0), OrderedFloat::from(30.0)),
+    ///     (OrderedFloat::from(30.0), OrderedFloat::<f64>::max_value())
+    /// ];
+    ///
+    /// let bucketizer = RangeBucketizer::new(ranges); 
+    ///
+    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
+    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
+    ///
+    /// let mut map: HashMap<String, usize> = hp.bucketize_local(bucketizer).collect();
+    /// let node_1_bucketed = map.get(&"node_1".to_string());
+    /// let node_2_bucketed = map.get(&"node_2".to_string());
+    ///
+    /// assert_eq!(Some(&1usize), node_1_bucketed);
+    /// assert_eq!(Some(&0usize), node_2_bucketed);
+    ///
+    /// ```
+    ///
     pub fn bucketize_local<'a, B>(
         &'a self, 
         bucketizer: B
@@ -102,6 +143,47 @@ where
         })
     }
 
+    /// Iterates over provided ids, and returns an iterator over 
+    /// (id, usize), i.e. the identifier for each item 
+    /// and the bucketized estimate for that item in the normalized local 
+    /// map 
+    ///
+    /// # Example 
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use buckets::bucketizers::fw::FixedWidthBucketizer;
+    /// use buckets::bucketize::BucketizeSingle;
+    /// use buckets::into_usize::IntoUsize;
+    /// use ordered_float::OrderedFloat;
+    /// use num_traits::Bounded;
+    ///
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
+    ///
+    /// let bucketizer: FixedWidthBucketizer<OrderedFloat<f64>> = {
+    ///     FixedWidthBucketizer::<OrderedFloat<f64>>::new(
+    ///         OrderedFloat::from(0.05), OrderedFloat::from(0.0)
+    ///     ) 
+    /// };
+    ///
+    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
+    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
+    ///
+    /// let mut map: HashMap<String, usize> = {
+    ///     hp.bucketize_normalized_local(bucketizer).collect()
+    /// };
+    ///
+    /// let node_1_bucketized = map.get(&"node_1".to_string());
+    /// let node_2_bucketized = map.get(&"node_2".to_string());
+    ///
+    /// assert_eq!(Some(&13usize), node_1_bucketized);
+    /// assert_eq!(Some(&5usize), node_2_bucketized);
+    ///
+    /// ```
     pub fn bucketize_normalized_local<'a, B>(
         &'a self, 
         bucketizer: B
@@ -116,6 +198,46 @@ where
         })
     }
 
+    /// Returns an iterator of keys -> bucketized values 
+    /// using the bucketizer provided, from the raw global 
+    /// trust map.
+    ///
+    /// # Example 
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use buckets::bucketizers::range::RangeBucketizer;
+    /// use buckets::bucketize::BucketizeSingle;
+    /// use ordered_float::OrderedFloat;
+    /// use num_traits::Bounded;
+    ///
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
+    ///
+    /// let ranges: Vec<(OrderedFloat<f64>, OrderedFloat<f64>)> = vec![
+    ///     (OrderedFloat::from(0.0), OrderedFloat::from(5.0)),
+    ///     (OrderedFloat::from(5.0), OrderedFloat::from(15.0)), 
+    ///     (OrderedFloat::from(15.0), OrderedFloat::from(30.0)),
+    ///     (OrderedFloat::from(30.0), OrderedFloat::<f64>::max_value())
+    /// ];
+    ///
+    /// let bucketizer = RangeBucketizer::new(ranges); 
+    ///
+    /// hp.update_global(&"node_1".to_string(), OrderedFloat::from(7.0));
+    /// hp.update_global(&"node_2".to_string(), OrderedFloat::from(3.0));
+    ///
+    /// let mut map: HashMap<String, usize> = hp.bucketize_global(bucketizer).collect();
+    /// let node_1_bucketed = map.get(&"node_1".to_string());
+    /// let node_2_bucketed = map.get(&"node_2".to_string());
+    ///
+    /// assert_eq!(Some(&1usize), node_1_bucketed);
+    /// assert_eq!(Some(&0usize), node_2_bucketed);
+    ///
+    /// ```
+    ///
     pub fn bucketize_global<'a, B>(
         &'a self, 
         bucketizer: B
@@ -130,6 +252,47 @@ where
         })
     }
 
+    /// Iterates over provided ids, and returns an iterator over 
+    /// (id, usize), i.e. the identifier for each item 
+    /// and the bucketized estimate for that item in the normalized local 
+    /// map 
+    ///
+    /// # Example 
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use decentrust::precise::PreciseHonestPeer;
+    /// use decentrust::honest_peer::HonestPeer;
+    /// use buckets::bucketizers::fw::FixedWidthBucketizer;
+    /// use buckets::bucketize::BucketizeSingle;
+    /// use buckets::into_usize::IntoUsize;
+    /// use ordered_float::OrderedFloat;
+    /// use num_traits::Bounded;
+    ///
+    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
+    ///     PreciseHonestPeer::new()
+    /// };
+    ///
+    /// let bucketizer: FixedWidthBucketizer<OrderedFloat<f64>> = {
+    ///     FixedWidthBucketizer::<OrderedFloat<f64>>::new(
+    ///         OrderedFloat::from(0.05), OrderedFloat::from(0.0)
+    ///     ) 
+    /// };
+    ///
+    /// hp.update_global(&"node_1".to_string(), OrderedFloat::from(7.0));
+    /// hp.update_global(&"node_2".to_string(), OrderedFloat::from(3.0));
+    ///
+    /// let mut map: HashMap<String, usize> = {
+    ///     hp.bucketize_normalized_global(bucketizer).collect()
+    /// };
+    ///
+    /// let node_1_bucketized = map.get(&"node_1".to_string());
+    /// let node_2_bucketized = map.get(&"node_2".to_string());
+    ///
+    /// assert_eq!(Some(&13usize), node_1_bucketized);
+    /// assert_eq!(Some(&5usize), node_2_bucketized);
+    ///
+    /// ```
     pub fn bucketize_normalized_global<'a, B>(
         &'a self, 
         bucketizer: B
