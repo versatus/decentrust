@@ -4,7 +4,7 @@ use buckets::bucketize::BucketizeSingle;
 use num_traits::Bounded;
 use std::marker::PhantomData;
 use crate::cms::CountMinSketch;
-use crate::honest_peer::HonestPeer;
+use crate::honest_peer::{HonestPeer, Update};
 use std::fmt::Debug;
 
 /// A struct to track local and global trust of peers in a 
@@ -165,7 +165,7 @@ where
     /// ```
     ///
     /// use decentrust::probabilistic::LightHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
+    /// use decentrust::honest_peer::{HonestPeer, Update};
     /// use buckets::bucketizers::range::RangeBucketizer;
     /// use buckets::bucketize::BucketizeSingle;
     /// use ordered_float::OrderedFloat;
@@ -191,8 +191,8 @@ where
     ///
     /// let bucketizer = RangeBucketizer::new(ranges); 
     ///
-    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
+    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0), Update::Increment);
+    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0), Update::Increment);
     ///
     /// let mut map = hp.bucketize_local(node_ids.iter().cloned(), bucketizer);
     ///
@@ -225,7 +225,7 @@ where
     ///
     /// ```
     /// use decentrust::probabilistic::LightHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
+    /// use decentrust::honest_peer::{HonestPeer, Update};
     /// use buckets::bucketizers::fw::FixedWidthBucketizer;
     /// use buckets::bucketize::BucketizeSingle;
     /// use buckets::into_usize::IntoUsize;
@@ -250,8 +250,8 @@ where
     ///     ) 
     /// };
     ///
-    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
+    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0), Update::Increment);
+    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0), Update::Increment);
     ///
     /// let mut map = hp.bucketize_normalized_local(node_ids.iter().cloned(), bucketizer);
     ///
@@ -285,7 +285,7 @@ where
     ///
     /// ```
     /// use decentrust::probabilistic::LightHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
+    /// use decentrust::honest_peer::{HonestPeer, Update};
     /// use buckets::bucketizers::range::RangeBucketizer;
     /// use buckets::bucketize::BucketizeSingle;
     /// use ordered_float::OrderedFloat;
@@ -310,9 +310,22 @@ where
     /// ];
     ///
     /// let bucketizer = RangeBucketizer::new(ranges); 
+    /// hp.init_local(&"node_1".to_string(), OrderedFloat::from(1.0));
+    /// hp.init_local(&"node_2".to_string(), OrderedFloat::from(1.0));
     ///
-    /// hp.update_global(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_global(&"node_2".to_string(), OrderedFloat::from(3.0));
+    /// hp.update_global(
+    ///     &"node_2".to_string(), 
+    ///     &"node_1".to_string(), 
+    ///     OrderedFloat::from(14.0), 
+    ///     Update::Increment
+    /// );
+    ///
+    /// hp.update_global(
+    ///     &"node_1".to_string(), 
+    ///     &"node_2".to_string(), 
+    ///     OrderedFloat::from(6.0), 
+    ///     Update::Increment
+    /// );
     ///
     /// let mut map = hp.bucketize_global(node_ids.iter().cloned(), bucketizer);
     ///
@@ -346,7 +359,7 @@ where
     /// ```
     ///
     /// use decentrust::probabilistic::LightHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
+    /// use decentrust::honest_peer::{HonestPeer, Update};
     /// use buckets::bucketizers::fw::FixedWidthBucketizer;
     /// use buckets::bucketize::BucketizeSingle;
     /// use buckets::into_usize::IntoUsize;
@@ -371,8 +384,22 @@ where
     ///     ) 
     /// };
     ///
-    /// hp.update_global(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_global(&"node_2".to_string(), OrderedFloat::from(3.0));
+    /// hp.init_local(&"node_1".to_string(), OrderedFloat::from(1.0));
+    /// hp.init_local(&"node_2".to_string(), OrderedFloat::from(1.0));
+    ///
+    /// hp.update_global(
+    ///     &"node_2".to_string(), 
+    ///     &"node_1".to_string(), 
+    ///     OrderedFloat::from(14.0), 
+    ///     Update::Increment
+    /// );
+    ///
+    /// hp.update_global(
+    ///     &"node_1".to_string(), 
+    ///     &"node_2".to_string(), 
+    ///     OrderedFloat::from(6.0), 
+    ///     Update::Increment
+    /// );
     ///
     /// let mut map = hp.bucketize_normalized_global(node_ids.iter().cloned(), bucketizer);
     ///
@@ -434,8 +461,16 @@ where
     }
 
     /// Updates a local trust value for a given peer
-    fn update_local(&mut self, key: &Self::Key, trust_delta: Self::Value) {
-        self.local_trust.increment(key, trust_delta);
+    fn update_local(
+        &mut self, 
+        key: &Self::Key, 
+        trust_delta: Self::Value, 
+        update: Update
+    ) {
+        match update {
+            Update::Increment => self.local_trust.increment(key, trust_delta),
+            Update::Decrement => self.local_trust.decrement(key, trust_delta), 
+        }
         self.normalize_local();
     }
 
@@ -456,8 +491,19 @@ where
     }
 
     /// updates a global trust value for a given peer
-    fn update_global(&mut self, key: &Self::Key, trust_delta: Self::Value) {
-        self.global_trust.increment(key, trust_delta);
+    fn update_global(
+        &mut self, 
+        sender: &Self::Key,
+        key: &Self::Key, 
+        trust_delta: Self::Value, 
+        update: Update
+    ) {
+        let sender_trust = self.normalized_local_trust.estimate(sender);
+        let weighted_delta = trust_delta * sender_trust;
+        match update {
+            Update::Increment => self.global_trust.increment(key, weighted_delta),
+            Update::Decrement => self.global_trust.decrement(key, weighted_delta)
+        }
         self.normalize_global();
     }
 

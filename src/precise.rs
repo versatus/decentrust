@@ -3,7 +3,7 @@ use std::hash::Hash;
 use std::ops::{AddAssign, DivAssign, SubAssign, Add, Mul, Div, Sub};
 use buckets::bucketize::BucketizeSingle;
 use num_traits::Bounded;
-use crate::honest_peer::HonestPeer;
+use crate::honest_peer::{HonestPeer, Update};
 
 /// A struct to track local and global trust of peers in a 
 /// peer to peer data sharing network. Trust scores 
@@ -32,7 +32,6 @@ use crate::honest_peer::HonestPeer;
 ///     normalized_global_trust: HashMap<K, V>,
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreciseHonestPeer<K, V> 
 where 
     K: Eq + Hash + Clone,
@@ -90,45 +89,7 @@ where
         }
     }
 
-    /// Returns an iterator of keys -> bucketized values 
-    /// using the bucketizer provided, from the raw local 
-    /// trust map.
     ///
-    /// # Example 
-    ///
-    /// ```
-    /// use std::collections::HashMap;
-    /// use decentrust::precise::PreciseHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
-    /// use buckets::bucketizers::range::RangeBucketizer;
-    /// use buckets::bucketize::BucketizeSingle;
-    /// use ordered_float::OrderedFloat;
-    /// use num_traits::Bounded;
-    ///
-    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
-    ///     PreciseHonestPeer::new()
-    /// };
-    ///
-    /// let ranges: Vec<(OrderedFloat<f64>, OrderedFloat<f64>)> = vec![
-    ///     (OrderedFloat::from(0.0), OrderedFloat::from(5.0)),
-    ///     (OrderedFloat::from(5.0), OrderedFloat::from(15.0)), 
-    ///     (OrderedFloat::from(15.0), OrderedFloat::from(30.0)),
-    ///     (OrderedFloat::from(30.0), OrderedFloat::<f64>::max_value())
-    /// ];
-    ///
-    /// let bucketizer = RangeBucketizer::new(ranges); 
-    ///
-    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
-    ///
-    /// let mut map: HashMap<String, usize> = hp.bucketize_local(bucketizer).collect();
-    /// let node_1_bucketed = map.get(&"node_1".to_string());
-    /// let node_2_bucketed = map.get(&"node_2".to_string());
-    ///
-    /// assert_eq!(Some(&1usize), node_1_bucketed);
-    /// assert_eq!(Some(&0usize), node_2_bucketed);
-    ///
-    /// ```
     ///
     pub fn bucketize_local<'a, B>(
         &'a self, 
@@ -143,47 +104,7 @@ where
         })
     }
 
-    /// Iterates over provided ids, and returns an iterator over 
-    /// (id, usize), i.e. the identifier for each item 
-    /// and the bucketized estimate for that item in the normalized local 
-    /// map 
     ///
-    /// # Example 
-    ///
-    /// ```
-    /// use std::collections::HashMap;
-    /// use decentrust::precise::PreciseHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
-    /// use buckets::bucketizers::fw::FixedWidthBucketizer;
-    /// use buckets::bucketize::BucketizeSingle;
-    /// use buckets::into_usize::IntoUsize;
-    /// use ordered_float::OrderedFloat;
-    /// use num_traits::Bounded;
-    ///
-    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
-    ///     PreciseHonestPeer::new()
-    /// };
-    ///
-    /// let bucketizer: FixedWidthBucketizer<OrderedFloat<f64>> = {
-    ///     FixedWidthBucketizer::<OrderedFloat<f64>>::new(
-    ///         OrderedFloat::from(0.05), OrderedFloat::from(0.0)
-    ///     ) 
-    /// };
-    ///
-    /// hp.update_local(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_local(&"node_2".to_string(), OrderedFloat::from(3.0));
-    ///
-    /// let mut map: HashMap<String, usize> = {
-    ///     hp.bucketize_normalized_local(bucketizer).collect()
-    /// };
-    ///
-    /// let node_1_bucketized = map.get(&"node_1".to_string());
-    /// let node_2_bucketized = map.get(&"node_2".to_string());
-    ///
-    /// assert_eq!(Some(&13usize), node_1_bucketized);
-    /// assert_eq!(Some(&5usize), node_2_bucketized);
-    ///
-    /// ```
     pub fn bucketize_normalized_local<'a, B>(
         &'a self, 
         bucketizer: B
@@ -198,46 +119,6 @@ where
         })
     }
 
-    /// Returns an iterator of keys -> bucketized values 
-    /// using the bucketizer provided, from the raw global 
-    /// trust map.
-    ///
-    /// # Example 
-    ///
-    /// ```
-    /// use std::collections::HashMap;
-    /// use decentrust::precise::PreciseHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
-    /// use buckets::bucketizers::range::RangeBucketizer;
-    /// use buckets::bucketize::BucketizeSingle;
-    /// use ordered_float::OrderedFloat;
-    /// use num_traits::Bounded;
-    ///
-    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
-    ///     PreciseHonestPeer::new()
-    /// };
-    ///
-    /// let ranges: Vec<(OrderedFloat<f64>, OrderedFloat<f64>)> = vec![
-    ///     (OrderedFloat::from(0.0), OrderedFloat::from(5.0)),
-    ///     (OrderedFloat::from(5.0), OrderedFloat::from(15.0)), 
-    ///     (OrderedFloat::from(15.0), OrderedFloat::from(30.0)),
-    ///     (OrderedFloat::from(30.0), OrderedFloat::<f64>::max_value())
-    /// ];
-    ///
-    /// let bucketizer = RangeBucketizer::new(ranges); 
-    ///
-    /// hp.update_global(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_global(&"node_2".to_string(), OrderedFloat::from(3.0));
-    ///
-    /// let mut map: HashMap<String, usize> = hp.bucketize_global(bucketizer).collect();
-    /// let node_1_bucketed = map.get(&"node_1".to_string());
-    /// let node_2_bucketed = map.get(&"node_2".to_string());
-    ///
-    /// assert_eq!(Some(&1usize), node_1_bucketed);
-    /// assert_eq!(Some(&0usize), node_2_bucketed);
-    ///
-    /// ```
-    ///
     pub fn bucketize_global<'a, B>(
         &'a self, 
         bucketizer: B
@@ -252,47 +133,6 @@ where
         })
     }
 
-    /// Iterates over provided ids, and returns an iterator over 
-    /// (id, usize), i.e. the identifier for each item 
-    /// and the bucketized estimate for that item in the normalized local 
-    /// map 
-    ///
-    /// # Example 
-    ///
-    /// ```
-    /// use std::collections::HashMap;
-    /// use decentrust::precise::PreciseHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
-    /// use buckets::bucketizers::fw::FixedWidthBucketizer;
-    /// use buckets::bucketize::BucketizeSingle;
-    /// use buckets::into_usize::IntoUsize;
-    /// use ordered_float::OrderedFloat;
-    /// use num_traits::Bounded;
-    ///
-    /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = {
-    ///     PreciseHonestPeer::new()
-    /// };
-    ///
-    /// let bucketizer: FixedWidthBucketizer<OrderedFloat<f64>> = {
-    ///     FixedWidthBucketizer::<OrderedFloat<f64>>::new(
-    ///         OrderedFloat::from(0.05), OrderedFloat::from(0.0)
-    ///     ) 
-    /// };
-    ///
-    /// hp.update_global(&"node_1".to_string(), OrderedFloat::from(7.0));
-    /// hp.update_global(&"node_2".to_string(), OrderedFloat::from(3.0));
-    ///
-    /// let mut map: HashMap<String, usize> = {
-    ///     hp.bucketize_normalized_global(bucketizer).collect()
-    /// };
-    ///
-    /// let node_1_bucketized = map.get(&"node_1".to_string());
-    /// let node_2_bucketized = map.get(&"node_2".to_string());
-    ///
-    /// assert_eq!(Some(&13usize), node_1_bucketized);
-    /// assert_eq!(Some(&5usize), node_2_bucketized);
-    ///
-    /// ```
     pub fn bucketize_normalized_global<'a, B>(
         &'a self, 
         bucketizer: B
@@ -357,7 +197,7 @@ where
     ///
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
+    /// use decentrust::honest_peer::{HonestPeer, Update};
     /// use ordered_float::OrderedFloat;
     ///
     /// fn equal_floats(a: f64, b: f64, epsilon: f64) -> bool {
@@ -372,7 +212,7 @@ where
     /// hp.init_local(&"node1".to_string(), 0.01f64.into());
     /// hp.init_local(&"node2".to_string(), 0.01f64.into());
     ///
-    /// hp.update_local(&"node1".to_string(), 0.05f64.into());
+    /// hp.update_local(&"node1".to_string(), 0.05f64.into(), Update::Increment);
     ///
     /// let local_total_trust = 0.01 + 0.01 + 0.05;
     /// let node_1_local_trust: OrderedFloat<f64> = (0.06 / local_total_trust).into();
@@ -406,13 +246,32 @@ where
     /// }
     ///
     /// ```
-    fn update_local(&mut self, key: &Self::Key, trust_delta: Self::Value) {
-        if let Some(trust_score) = self.local_trust.get_mut(key) {
-            *trust_score += trust_delta
-        } else {
-            self.local_trust.insert(key.clone(), trust_delta);
+    fn update_local(
+        &mut self, 
+        key: &Self::Key, 
+        trust_delta: Self::Value, 
+        update: Update
+    ) {
+        match update {
+            Update::Increment => {
+                if let Some(trust_score) = self.local_trust.get_mut(key) {
+                    *trust_score += trust_delta
+                } else {
+                    self.local_trust.insert(key.clone(), trust_delta);
+                }
+            },
+            Update::Decrement => {
+                if let Some(trust_score) = self.local_trust.get_mut(key) {
+                    if trust_delta > *trust_score {
+                        *trust_score = V::default();
+                    } else {
+                        *trust_score -= trust_delta
+                    }
+                } else {
+                    self.local_trust.insert(key.clone(), trust_delta);
+                }
+            }
         }
-
         self.normalize_local()
     }
 
@@ -433,7 +292,7 @@ where
         return None
     }
 
-    /// Initialize the local trust score of a newly discovered peer 
+    /// Initialize the global trust score of a newly discovered peer 
     ///
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
@@ -460,7 +319,7 @@ where
     /// the normalized global trust map.
     /// ```
     /// use decentrust::precise::PreciseHonestPeer;
-    /// use decentrust::honest_peer::HonestPeer;
+    /// use decentrust::honest_peer::{HonestPeer, Update};
     /// use ordered_float::OrderedFloat;
     ///
     /// let mut hp: PreciseHonestPeer<String, OrderedFloat<f64>> = PreciseHonestPeer::new();
@@ -469,7 +328,12 @@ where
     /// hp.init_global(&"node1".to_string(), 0.01f64.into());
     /// hp.init_global(&"node2".to_string(), 0.01f64.into());
     ///
-    /// hp.update_global(&"node1".to_string(), 0.02f64.into());
+    /// hp.update_global(
+    ///     &"node2".to_string(), 
+    ///     &"node1".to_string(), 
+    ///     0.02f64.into(), 
+    ///     Update::Increment
+    /// );
     ///
     /// let global_total_trust = 0.01 + 0.01 + 0.02;
     /// let node_1_global_trust: OrderedFloat<f64> = (0.03 / global_total_trust).into();
@@ -483,11 +347,34 @@ where
     /// println!("{:?}", hp.get_normalized_global(&"node2".to_string())); 
     /// println!("{:?}", hp.get_raw_global(&"node2".to_string())); 
     /// ```
-    fn update_global(&mut self, key: &Self::Key, trust_delta: Self::Value) {
-        if let Some(trust_score) = self.global_trust.get_mut(key) {
-            *trust_score += trust_delta
-        } else {
-            self.global_trust.insert(key.clone(), trust_delta);
+    fn update_global(
+        &mut self, 
+        sender: &Self::Key,
+        key: &Self::Key, 
+        trust_delta: Self::Value, 
+        update: Update
+    ) {
+        let sender_trust = self.get_normalized_local(sender);
+        if let Some(sender_trust) = sender_trust {
+            let weighted_delta = trust_delta * sender_trust;
+            match update {
+                Update::Increment => {
+                    if let Some(trust_score) = self.global_trust.get_mut(key) {
+                        *trust_score += weighted_delta;
+                    } else {
+                        self.global_trust.insert(key.clone(), weighted_delta);
+                    }
+                },
+                Update::Decrement => {
+                    if let Some(trust_score) = self.global_trust.get_mut(key) {
+                        if weighted_delta > *trust_score {
+                            *trust_score = V::default();
+                        } else {
+                            *trust_score -= weighted_delta;
+                        }
+                    }
+                }
+            }
         }
 
         self.normalize_global();
