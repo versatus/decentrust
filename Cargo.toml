@@ -7,7 +7,6 @@ description = "A lightweight library crate to provide structs and methods to imp
 readme = "README.md"
 homepage = "https://vrrb.io/decentrust.rs"
 repository = "https://github.com/vrrb-io/decentrust"
-license = "MIT"
 license-file = "LICENSE"
 keywords = ["p2p", "eigentrust", "reputation", "honestpeer", "p2p-networks"]
 
