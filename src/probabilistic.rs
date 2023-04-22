@@ -485,8 +485,10 @@ where
     }
 
     /// initializes a global trust value for a newly discovered peer
-    fn init_global(&mut self, key: &Self::Key, init_value: Self::Value) {
-        self.global_trust.increment(key, init_value);
+    fn init_global(&mut self, sender: &Self::Key, key: &Self::Key, init_value: Self::Value) {
+        let sender_trust = self.normalized_local_trust.estimate(sender);
+        let weighted_init = init_value * sender_trust;
+        self.global_trust.increment(key, weighted_init);
         self.normalize_global();
     }
 
