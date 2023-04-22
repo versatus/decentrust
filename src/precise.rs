@@ -310,9 +310,13 @@ where
     /// assert_eq!(hp.global_normalized_len(), 1);
     ///
     /// ```
-    fn init_global(&mut self, key: &Self::Key, init_value: Self::Value) {
-        self.global_trust.insert(key.clone(), init_value);
-        self.normalize_global()
+    fn init_global(&mut self, sender: &Self::Key, key: &Self::Key, init_value: Self::Value) {
+        let sender_trust = self.get_normalized_local(sender);
+        if let Some(sender_trust) = sender_trust {
+            let weighted_init = init_value * sender_trust;
+            self.global_trust.insert(key.clone(), weighted_init);
+            self.normalize_global()
+        }
     }
 
     /// Updates a global trust value for a given peer and normalizes
