@@ -12,6 +12,7 @@ use std::hash::Hash;
 
 use buckets::into_buckets::IntoBuckets;
 use num_traits::Bounded;
+use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
 pub enum Update {
