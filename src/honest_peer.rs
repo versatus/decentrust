@@ -13,6 +13,11 @@ use std::hash::Hash;
 use buckets::into_buckets::IntoBuckets;
 use num_traits::Bounded;
 
+pub enum Update {
+    Increment,
+    Decrement
+}
+
 /// A trait to implement a shared interface between a 
 /// precise and proabilistic data structures to track P2P node 
 pub trait HonestPeer {
@@ -31,11 +36,11 @@ pub trait HonestPeer {
         + Bounded; 
 
     fn init_local(&mut self, key: &Self::Key, init_value: Self::Value);
-    fn update_local(&mut self, key: &Self::Key, trust_delta: Self::Value);
+    fn update_local(&mut self, key: &Self::Key, trust_delta: Self::Value, update: Update);
     fn get_raw_local(&self, key: &Self::Key) -> Option<Self::Value>;
     fn get_normalized_local(&self, key: &Self::Key) -> Option<Self::Value>;
     fn init_global(&mut self, key: &Self::Key, init_value: Self::Value);
-    fn update_global(&mut self, key: &Self::Key, trust_delta: Self::Value);
+    fn update_global(&mut self, sender: &Self::Key, key: &Self::Key, trust_delta: Self::Value, update: Update);
     fn get_raw_global(&self, key: &Self::Key) -> Option<Self::Value>;
     fn get_normalized_global(&self, key: &Self::Key) -> Option<Self::Value>;
     fn get_raw_local_map(&self) -> Self::Map;
