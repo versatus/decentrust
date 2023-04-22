@@ -10,10 +10,10 @@ use std::ops::{
 
 use std::hash::Hash;
 
-use buckets::into_buckets::IntoBuckets;
 use num_traits::Bounded;
+use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Update {
     Increment,
     Decrement
